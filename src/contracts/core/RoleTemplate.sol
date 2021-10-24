@@ -2,11 +2,8 @@ pragma solidity 0.6.12;
 pragma experimental ABIEncoderV2;
 
 import 'github.com/DreamWorksFactory2021/DreamWorks/src/contracts/token/BEP20/ERC721.sol';
-import 'github.com/DreamWorksFactory2021/DreamWorks/src/contracts/core/algorithmHelper.sol';
-
 contract RoleTemplate is ERC721 {
 
-    AlgorithmHelper algorithmHelper;
     string public ROLE_SALT = "ROLE"; //加密盐
     string public ROLE_TYPE_SALT = "ROLE_TYPE";//类型盐
     string[] public ROLE_TAG;//角色标签
@@ -45,28 +42,29 @@ contract RoleTemplate is ERC721 {
 
     function create() public returns (uint256){
         //创建随机数提供给角色对象
-        uint8 roleRanDom = algorithmHelper.get8Random(ROLE_INIT_NUM, ROLE_SALT);
+        uint8 roleRanDom = _get8Random(ROLE_INIT_NUM, ROLE_SALT);
         //随机产生稀有度
-        uint8 rarity = algorithmHelper.getRarity(INIT_RARITY);
+        uint8 rarity = _getRarity(INIT_RARITY);
         uint8 level = 1;
         //给予初始化的参数
-        uint32 atk = algorithmHelper.getInitAttr(rarity, INIT_ATTR);
-        uint32 def = algorithmHelper.getInitAttr(rarity, INIT_ATTR);
-        uint32 hp = algorithmHelper.getInitAttr(rarity, INIT_ATTR);
-        uint32 speed = algorithmHelper.getInitAttr(rarity, INIT_ATTR);
-        uint32 combatNumerical = algorithmHelper.getRoleCombatNumerical(atk, def, hp, speed, rarity, level, ROLE_TAG.length, INIT_RADIO);
-        uint32 roleType = algorithmHelper.get32Random(INIT_ROLE_TYPE, ROLE_TYPE_SALT);
-        uint256 needExp = algorithmHelper.getNeedExp(EXP_BASE_VALUE, level);
+        uint32 atk = _getInitAttr(rarity, INIT_ATTR);
+        uint32 def = _getInitAttr(rarity, INIT_ATTR);
+        uint32 hp = _getInitAttr(rarity, INIT_ATTR);
+        uint32 speed = _getInitAttr(rarity, INIT_ATTR);
+        uint32 combatNumerical = _getRoleCombatNumerical(level,raritymatk, def, hp, speed,ROLE_TAG.length, INIT_RADIO);
+        uint32 roleType = _get32Random(INIT_ROLE_TYPE, ROLE_TYPE_SALT);
+        uint256 needExp = _getNeedExp(EXP_BASE_VALUE, level);
         uint256 nowExp = 1;
 
         Role memory role = Role(rarity, level, atk, def, hp, speed, combatNumerical, roleType, nowExp, needExp,0,ROLE_TAG);
-        uint256 roleId = AllRoles.push(role).length - 1;
-        role.roleId=roleId;
+        AllRoles.push(role);
+        uint256 _roleId=AllRoles.length-1;
+        role.roleId=_roleId;
         _ownAllRoles[msg.sender].push(role);
-        _tokenOwnInfo[roleId]=msg.sender;
-        _transfer(address(0),msg.sender,roleId);
+        _tokenOwnInfo[_roleId]=msg.sender;
+        _transfer(address(0),msg.sender,_roleId);
         _OwnCount[msg.sender]=_OwnCount[msg.sender]+1;
-        return roleId;
+        return _roleId;
 
     }
 
@@ -77,7 +75,7 @@ contract RoleTemplate is ERC721 {
     /// @notice Count all NFTs assigned to an owner
     /// @dev NFTs assigned to the zero address are considered invalid, and this
     ///  function throws for queries about the zero address.
-    /// @param _owner An address for whom to query the balance
+    /// @param owner An address for whom to query the balance
     /// @return The number of NFTs owned by `_owner`, possibly zero
     function balanceOf(address owner) public view virtual override returns (uint256) {
         require(owner != address(0), "ERC721: balance query for the zero address");
@@ -197,5 +195,131 @@ contract RoleTemplate is ERC721 {
         _OwnCount[to] += 1;
         _tokenOwnInfo[tokenId] = to;
         emit Transfer(from, to, tokenId);
+    }
+
+    //方法传参一定要与方法参数类型一致
+    //外部调用别的合约 一定需要创建构造方法 然后传递合约地址 才能调用别的合约的方法
+    //需要取出的数据范围  _salt 需要加密的盐 至多返回0~255
+    function _get8Random(uint8 _remainder, string memory _salt)
+    public view returns (uint8){
+        uint8 randomNumber = uint8(uint256(keccak256(abi.encodePacked(block.timestamp, _salt))) % _remainder);
+        uint8 random = uint8(randomNumber);
+        return random;
+    }
+
+    function _get32Random(uint32 _remainder, string memory _salt)
+    public view returns (uint32){
+        uint32 randomNumber = uint32(uint256(keccak256(abi.encodePacked(block.timestamp, _salt))) % _remainder);
+        uint32 random = uint32(randomNumber);
+        return random;
+    }
+
+    function _getRandomStr(
+        uint _remainder,
+        string memory _salt,
+        string[] memory _attr)
+    public view returns (string memory){
+        uint8 randomNumber = uint8(uint256(keccak256(abi.encodePacked(block.timestamp, _salt))) % _remainder);
+        string memory randomStr;
+        if (randomNumber <= _attr.length - 1 && _attr.length > 0) {
+            randomStr = _attr[randomNumber + 1];
+        }
+        return randomStr;
+    }
+
+    //满足稀有率因此设定稀有等级
+    //1星：48%
+    //
+    //2星：27%
+    //
+    //3星：16%
+    //
+    //4星：8%
+    //
+    //5星：1%
+    //
+    //6星：1%*1%=0.01%
+    function _getRarity(uint8[] memory _section) public view returns (uint8){
+        uint8 rarity;
+        uint8 random = _get8Random(100, "_rarity") + 1;
+        if (_section[0] <= random && _section[1] > random) {
+            rarity = 1;
+        } else if (_section[1] <= random && _section[2] > random) {
+            rarity = 2;
+        } else if (_section[2] <= random && _section[3] > random) {
+            rarity = 3;
+        } else if (_section[3] <= random && _section[4] >= random) {
+            rarity = 4;
+        } else if (random == _section[4] + 1) {
+            rarity = 5;
+            if(random==_section[4]+1){
+                rarity = 6;
+            }
+        }
+        return rarity;
+    }
+    //获取成长值
+    //1星  （15~20 随机波动）
+    //
+    //2星  （18~25随机波动）
+    //
+    //3星  （23~30随机波动）
+    //
+    //4星   (28~38随机波动)
+    //
+    //5星  （39~48随机波动）
+    //
+    //6星   (49~58随机波动)
+    function _getInitAttr(uint8 _rarity,uint8[] memory _rarityValue) public view returns(uint8){
+        uint8 minValue=_rarityValue[_rarity*2-2];
+        uint8 maxValue=_rarityValue[_rarity*2-1];
+        return minValue+_get8Random(maxValue-minValue,"_initAttr");
+    }
+
+
+    function _getRoleCombatNumerical(
+        uint8 _level,
+        uint8 _rarity,
+        uint32 _atk,
+        uint32 _def,
+        uint32 _hp,
+        uint32 _speed,
+        uint32 _roleTagLength,
+        uint16 _initCombatNumericalRadio)
+    public view returns (uint32)
+    {
+        uint32 combatNumerical=0;
+        if (_atk > 0) {
+            combatNumerical =combatNumerical+ _atk * _initCombatNumericalRadio;
+        }
+        if (_def > 0) {
+            combatNumerical =combatNumerical+ _def * _initCombatNumericalRadio;
+        }
+        if (_hp > 0) {
+            combatNumerical =combatNumerical+ _hp * _initCombatNumericalRadio;
+        }
+        if (_speed > 0) {
+            combatNumerical =combatNumerical+ _speed * _initCombatNumericalRadio;
+        }
+        if (_rarity > 0) {
+            combatNumerical =combatNumerical+ _rarity * _initCombatNumericalRadio;
+        }
+        if (_level > 0) {
+            combatNumerical =combatNumerical+ _level * _initCombatNumericalRadio;
+        }
+        if (_roleTagLength > 0) {
+            combatNumerical =combatNumerical+ _roleTagLength * _initCombatNumericalRadio;
+        }
+        return combatNumerical;
+    }
+
+    function _getNeedExp(uint16 _baseVale,uint8 _level) public view returns(uint256){
+        return _baseVale*_level;
+    }
+
+    //分段去可以保证不会数据重复 便利还得去重相当麻烦
+    function _getRoleTag(uint8 _rarity,string[] memory _roleTag) public view returns(string[] memory roleTag){
+        string[] memory roleTag;
+        return roleTag;
     }
 }
