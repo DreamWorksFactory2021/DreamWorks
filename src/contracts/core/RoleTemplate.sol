@@ -23,7 +23,7 @@ contract RoleTemplate is ERC721,Ownable {
     mapping(address => mapping(uint256 => Role)) internal _ownAllRoles;
     mapping(address => uint256[]) internal _ownAllRoleIds;
     mapping(uint256 => address) internal _tokenOwnInfo; //token和用户对应
-    mapping(uint256 => address) internal _tokenApprovals;//token批准
+    mapping(address => mapping(uint256=> address)) internal _tokenApprovals;//token批准售卖
     mapping(address => uint256) internal _balances; //数量
     // Mapping from owner to operator approvals
     mapping(address => mapping(address => bool)) private _operatorApprovals;
@@ -78,6 +78,10 @@ contract RoleTemplate is ERC721,Ownable {
         return _ownAllRoles[msg.sender][_tokenId];
     }
 
+    function getAllRoleInfo() public view returns(Role[] memory){
+        return AllRoles;
+    }
+
     function getUserAllRole() public view returns (Role[] memory){
         Role[] memory resultRoles =new Role[](_balances[msg.sender]) ;
         uint256[] memory roleIds= _ownAllRoleIds[msg.sender];
@@ -123,8 +127,8 @@ contract RoleTemplate is ERC721,Ownable {
     function safeTransferFrom(address _from, address _to, uint256 _tokenId, bytes memory data) override external payable{
         require(_from !=_to,"Don't repeat the operation");
         require(_from !=address(0),"address(0) the operation is not allowed");
-        require(_from !=_tokenOwnInfo[_tokenId],"Can't operate without owning");
-        require(_tokenApprovals[_tokenId] !=_to,"Unauthorized address does not allow operation");
+        require(_tokenOwnInfo[_tokenId] ==_from ,"Can't operate without owning");
+        require(_tokenApprovals[_from][_tokenId]==_to,"Unauthorized address does not allow operation");
         _transfer(_from,_to,_tokenId);
     }
 
@@ -136,8 +140,9 @@ contract RoleTemplate is ERC721,Ownable {
     /// @param _tokenId The NFT to transfer
     function safeTransferFrom(address _from, address _to, uint256 _tokenId) override external payable{
         require(_from !=_to,"Don't repeat the operation");
-        require(_from !=address(0)&&_from !=_tokenOwnInfo[_tokenId],"Can't operate without owning");
-        require(_tokenApprovals[_tokenId] !=_to,"Unauthorized address does not allow operation");
+        require(_from !=address(0),"address(0) the operation is not allowed");
+        require(_tokenOwnInfo[_tokenId] ==_from ,"Can't operate without owning");
+        require(_tokenApprovals[_from][_tokenId]==_to,"Unauthorized address does not allow operation");
         _transfer(_from,_to,_tokenId);
     }
 
@@ -153,8 +158,9 @@ contract RoleTemplate is ERC721,Ownable {
     /// @param _tokenId The NFT to transfer
     function transferFrom(address _from, address _to, uint256 _tokenId) override external payable{
         require(_from !=_to,"Don't repeat the operation");
-        require(_from !=address(0),"address(0) can't operate");
-        require(msg.sender !=_tokenOwnInfo[_tokenId],"Can't operate without owning");
+        require(_from !=address(0),"address(0) the operation is not allowed");
+        require(_tokenOwnInfo[_tokenId] ==_from ,"Can't operate without owning");
+        require(_tokenApprovals[_from][_tokenId]==_to,"Unauthorized address does not allow operation");
         _transfer(_from, _to, _tokenId);
     }
 
@@ -165,8 +171,8 @@ contract RoleTemplate is ERC721,Ownable {
     /// @param _approved The new approved NFT controller
     /// @param _tokenId The NFT to approve
     function approve(address _approved, uint256 _tokenId) override external payable{
-        require(_approved==_tokenOwnInfo[_tokenId],"authorized address is not an owner");
-        _tokenApprovals[_tokenId]=_approved;
+        require(msg.sender==_tokenOwnInfo[_tokenId],"authorized address is not an owner");
+        _approve(_approved,_tokenId);
     }
 
     /// @notice Enable or disable approval for a third party ("operator") to manage
@@ -176,7 +182,7 @@ contract RoleTemplate is ERC721,Ownable {
     /// @param _operator Address to add to the set of authorized operators.
     /// @param _approved True if the operator is approved, false to revoke approval
     function setApprovalForAll(address _operator, bool _approved) override  external  {
-        require(msg.sender != Ownable.owner(), "ERC721: approve to caller");
+        require(msg.sender == Ownable.owner(), "ERC721: approve to caller");
         _operatorApprovals[msg.sender][_operator] = _approved;
         emit ApprovalForAll(msg.sender, _operator, _approved);
     }
@@ -187,7 +193,7 @@ contract RoleTemplate is ERC721,Ownable {
     /// @return The approved address for this NFT, or the zero address if there is none
     function getApproved(uint256 _tokenId) public view virtual override returns (address) {
         require(_exists(_tokenId), "ERC721: approved query for nonexistent token");
-        return _tokenApprovals[_tokenId];
+        return _tokenApprovals[msg.sender][_tokenId];
     }
 
     /// @notice Query if an address is an authorized operator for another address
@@ -221,7 +227,7 @@ contract RoleTemplate is ERC721,Ownable {
      * Emits a {Approval} event.
      */
     function _approve(address to, uint256 tokenId) internal virtual {
-        _tokenApprovals[tokenId] = to;
+        _tokenApprovals[msg.sender][tokenId] = to;
         emit Approval(_ownerOf(tokenId), to, tokenId);
     }
 
