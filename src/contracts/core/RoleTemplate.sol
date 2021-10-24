@@ -20,10 +20,11 @@ contract RoleTemplate is ERC721,Ownable {
 
 
     Role[] public AllRoles;
-    mapping(address => Role[]) internal _ownAllRoles;
+    mapping(address => mapping(uint256 => Role)) internal _ownAllRoles;
+    mapping(address => uint256[]) internal _ownAllRoleIds;
     mapping(uint256 => address) internal _tokenOwnInfo; //token和用户对应
-    mapping(uint256 => address) internal _tokenApprovals;
-    mapping(address => uint256) internal _balances;
+    mapping(uint256 => address) internal _tokenApprovals;//token批准
+    mapping(address => uint256) internal _balances; //数量
     // Mapping from owner to operator approvals
     mapping(address => mapping(address => bool)) private _operatorApprovals;
 
@@ -64,17 +65,28 @@ contract RoleTemplate is ERC721,Ownable {
         AllRoles.push(role);
         uint256 _roleId=AllRoles.length-1;
         role.roleId=_roleId;
-        _ownAllRoles[msg.sender].push(role);
+        _ownAllRoles[msg.sender][_roleId]=role;
+        _ownAllRoleIds[msg.sender].push(_roleId);
         _tokenOwnInfo[_roleId]=msg.sender;
         _transfer(address(0),msg.sender,_roleId);
-        uint256 count= _balances[msg.sender];
-        _balances[msg.sender]=count+1;
+        _balances[msg.sender]+1;
         return _roleId;
 
     }
 
-    function getUserRole() public returns (Role[] memory){
-        return _ownAllRoles[msg.sender];
+    function getUserRole(uint256 _tokenId) public view returns (Role memory){
+        return _ownAllRoles[msg.sender][_tokenId];
+    }
+
+    function getUserAllRole() public view returns (Role[] memory){
+        Role[] memory resultRoles =new Role[](_balances[msg.sender]) ;
+        uint256[] memory roleIds= _ownAllRoleIds[msg.sender];
+        if(roleIds.length>0){
+            for(uint256 i=0;i<= roleIds.length;i++){
+                resultRoles[i]=_ownAllRoles[msg.sender][roleIds[i]];
+            }
+        }
+        return resultRoles;
     }
 
     /// @notice Count all NFTs assigned to an owner
@@ -110,7 +122,8 @@ contract RoleTemplate is ERC721,Ownable {
     /// @param data Additional data with no specified format, sent in call to `_to`
     function safeTransferFrom(address _from, address _to, uint256 _tokenId, bytes memory data) override external payable{
         require(_from !=_to,"Don't repeat the operation");
-        require(_from !=address(0)&&_from !=_tokenOwnInfo[_tokenId],"Can't operate without owning");
+        require(_from !=address(0),"address(0) the operation is not allowed");
+        require(_from !=_tokenOwnInfo[_tokenId],"Can't operate without owning");
         require(_tokenApprovals[_tokenId] !=_to,"Unauthorized address does not allow operation");
         _transfer(_from,_to,_tokenId);
     }
@@ -141,8 +154,7 @@ contract RoleTemplate is ERC721,Ownable {
     function transferFrom(address _from, address _to, uint256 _tokenId) override external payable{
         require(_from !=_to,"Don't repeat the operation");
         require(_from !=address(0),"address(0) can't operate");
-        require(_from !=_tokenOwnInfo[_tokenId],"Can't operate without owning");
-        require(_tokenApprovals[_tokenId] !=_to,"Unauthorized address does not allow operation");
+        require(msg.sender !=_tokenOwnInfo[_tokenId],"Can't operate without owning");
         _transfer(_from, _to, _tokenId);
     }
 
@@ -153,8 +165,8 @@ contract RoleTemplate is ERC721,Ownable {
     /// @param _approved The new approved NFT controller
     /// @param _tokenId The NFT to approve
     function approve(address _approved, uint256 _tokenId) override external payable{
-         require(_approved==_tokenOwnInfo[_tokenId],"authorized address is not an owner");
-         _tokenApprovals[_tokenId]=_approved;
+        require(_approved==_tokenOwnInfo[_tokenId],"authorized address is not an owner");
+        _tokenApprovals[_tokenId]=_approved;
     }
 
     /// @notice Enable or disable approval for a third party ("operator") to manage
@@ -195,6 +207,11 @@ contract RoleTemplate is ERC721,Ownable {
         _balances[from] -= 1;
         _balances[to] += 1;
         _tokenOwnInfo[tokenId] = to;
+        if(from !=address(0)){
+            Role memory role= _ownAllRoles[from][tokenId];
+            _ownAllRoles[to][tokenId]=role;
+            delete _ownAllRoles[from][tokenId];
+        }
         emit Transfer(from, to, tokenId);
     }
 
