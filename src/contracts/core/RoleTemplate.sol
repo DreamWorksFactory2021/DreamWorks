@@ -3,11 +3,11 @@ pragma solidity 0.6.12;
 import 'github.com/DreamWorksFactory2021/DreamWorks/src/contracts/token/BEP20/ERC721.sol';
 import './algorithmHelper.sol';
 
-contract RoleTemplate is ERC721{
+contract RoleTemplate is ERC721 {
 
     AlgorithmHelper algorithmHelper;
     string public ROLE_SALT = "ROLE"; //加密盐
-    string public ROLE_TYPE_SALT="ROLE_TYPE";//类型盐
+    string public ROLE_TYPE_SALT = "ROLE_TYPE";//类型盐
     string[] public ROLE_TAG;//角色标签
     uint8  public ROLE_INIT_NUM = 5; //角色初始数值
     uint8[] public INIT_RARITY = [1, 48, 75, 91, 99]; //初始稀有属性度
@@ -19,7 +19,8 @@ contract RoleTemplate is ERC721{
 
 
 
-    mapping(address=>Role[]) internal OwnAllRoles;
+    mapping(address => Role[]) internal OwnAllRoles;
+
     event createSuccess(uint32 roleId, address userAdress);
 
     struct Role {
@@ -43,24 +44,24 @@ contract RoleTemplate is ERC721{
         uint8 rarity = algorithmHelper.getRarity(INIT_RARITY);
         uint8 level = 1;
         //给予初始化的参数
-        uint32 atk = algorithmHelper.getInitAttr(rarity, initAttr) ;
+        uint32 atk = algorithmHelper.getInitAttr(rarity, initAttr);
         uint32 def = algorithmHelper.getInitAttr(rarity, initAttr);
         uint32 hp = algorithmHelper.getInitAttr(rarity, initAttr);
         uint32 speed = algorithmHelper.getInitAttr(rarity, initAttr);
-        uint32 combatNumerical=algorithmHelper.getRoleCombatNumerical(atk,def,hp,speed,rarity,level,roleTag.length,initCombatNumericalRadio);
-        uint32 roleType=algorithmHelper.get32Random(INIT_ROLE_TYPE,ROLE_TYPE_SALT);
-        uint256 needExp= algorithmHelper.getNeedExp(baseVale,level);
+        uint32 combatNumerical = algorithmHelper.getRoleCombatNumerical(atk, def, hp, speed, rarity, level, roleTag.length, initCombatNumericalRadio);
+        uint32 roleType = algorithmHelper.get32Random(INIT_ROLE_TYPE, ROLE_TYPE_SALT);
+        uint256 needExp = algorithmHelper.getNeedExp(baseVale, level);
         uint256 nowExp = 1;
 
 
-        Role memory role=Role(rarity,level,atk,def,hp,speed,combatNumerical,roleType,nowExp,needExp,roleTag);
-        uint256 roleId =roles.push(role)-1;
+        Role memory role = Role(rarity, level, atk, def, hp, speed, combatNumerical, roleType, nowExp, needExp, roleTag);
+        uint256 roleId = roles.push(role) - 1;
         OwnAllRoles[msg.sender].push(role);
         return roleId;
 
     }
 
-    function getUserRole() public returns(Role[] memory){
+    function getUserRole() public returns (Role[] memory){
         return OwnAllRoles[msg.sender];
     }
 }
