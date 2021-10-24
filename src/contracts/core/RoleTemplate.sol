@@ -1,4 +1,5 @@
 pragma solidity 0.6.12;
+pragma experimental ABIEncoderV2;
 
 import 'github.com/DreamWorksFactory2021/DreamWorks/src/contracts/token/BEP20/ERC721.sol';
 import 'github.com/DreamWorksFactory2021/DreamWorks/src/contracts/core/algorithmHelper.sol';
@@ -59,11 +60,12 @@ contract RoleTemplate is ERC721 {
         uint256 nowExp = 1;
 
         Role memory role = Role(rarity, level, atk, def, hp, speed, combatNumerical, roleType, nowExp, needExp,0,ROLE_TAG);
-        uint256 roleId = AllRoles.push(role) - 1;
+        uint256 roleId = AllRoles.push(role).length - 1;
         role.roleId=roleId;
         _ownAllRoles[msg.sender].push(role);
         _tokenOwnInfo[roleId]=msg.sender;
         _transfer(address(0),msg.sender,roleId);
+        _OwnCount[msg.sender]=_OwnCount[msg.sender]+1;
         return roleId;
 
     }
@@ -79,7 +81,7 @@ contract RoleTemplate is ERC721 {
     /// @return The number of NFTs owned by `_owner`, possibly zero
     function balanceOf(address owner) public view virtual override returns (uint256) {
         require(owner != address(0), "ERC721: balance query for the zero address");
-        return _tokenOwnInfo[owner];
+        return _OwnCount[owner];
     }
 
     /// @notice Find the owner of an NFT
@@ -87,7 +89,7 @@ contract RoleTemplate is ERC721 {
     ///  about them do throw.
     /// @param _tokenId The identifier for an NFT
     /// @return The address of the owner of the NFT
-    function ownerOf(uint256 _tokenId) external view returns (address){
+    function ownerOf(uint256 _tokenId) external view override returns (address){
         return _tokenOwnInfo[_tokenId];
     }
 
@@ -103,7 +105,7 @@ contract RoleTemplate is ERC721 {
     /// @param _to The new owner
     /// @param _tokenId The NFT to transfer
     /// @param data Additional data with no specified format, sent in call to `_to`
-    function safeTransferFrom(address _from, address _to, uint256 _tokenId, bytes data) external payable{
+    function safeTransferFrom(address _from, address _to, uint256 _tokenId, bytes memory data) override external payable{
         require(_from !=_to,"Don't repeat the operation");
         require(_from !=address(0)&&_from !=_tokenOwnInfo[_tokenId],"Can't operate without owning");
         require(_roleApprove[_tokenId] !=_to,"Unauthorized address does not allow operation");
@@ -116,7 +118,7 @@ contract RoleTemplate is ERC721 {
     /// @param _from The current owner of the NFT
     /// @param _to The new owner
     /// @param _tokenId The NFT to transfer
-    function safeTransferFrom(address _from, address _to, uint256 _tokenId) external payable{
+    function safeTransferFrom(address _from, address _to, uint256 _tokenId) override external payable{
         require(_from !=_to,"Don't repeat the operation");
         require(_from !=address(0)&&_from !=_tokenOwnInfo[_tokenId],"Can't operate without owning");
         require(_roleApprove[_tokenId] !=_to,"Unauthorized address does not allow operation");
@@ -133,11 +135,11 @@ contract RoleTemplate is ERC721 {
     /// @param _from The current owner of the NFT
     /// @param _to The new owner
     /// @param _tokenId The NFT to transfer
-    function transferFrom(address _from, address _to, uint256 _tokenId) external payable{
+    function transferFrom(address _from, address _to, uint256 _tokenId) override external payable{
         require(_from !=_to,"Don't repeat the operation");
         require(_from !=address(0)&&_from !=_tokenOwnInfo[_tokenId],"Can't operate without owning");
         require(_roleApprove[_tokenId] !=_to,"Unauthorized address does not allow operation");
-        _transfer(_from, _to, tokenId);
+        _transfer(_from, _to, _tokenId);
     }
 
     /// @notice Set or reaffirm the approved address for an NFT
@@ -146,8 +148,8 @@ contract RoleTemplate is ERC721 {
     ///  operator of the current owner.
     /// @param _approved The new approved NFT controller
     /// @param _tokenId The NFT to approve
-    function approve(address _approved, uint256 _tokenId) external payable{
-         require(_approved==OwnInfo[_tokenId],"authorized address is not an owner");
+    function approve(address _approved, uint256 _tokenId) override external payable{
+         require(_approved==_tokenOwnInfo[_tokenId],"authorized address is not an owner");
          _roleApprove[_tokenId]=_approved;
     }
 
@@ -157,14 +159,11 @@ contract RoleTemplate is ERC721 {
     ///  multiple operators per owner.
     /// @param _operator Address to add to the set of authorized operators.
     /// @param _approved True if the operator is approved, false to revoke approval
-    function setApprovalForAll(address _operator, bool _approved) external {
+    function setApprovalForAll(address _operator, bool _approved) override external {
         if(_approved){
-         Role[] roles= _ownAllRoles[msg.sender];
-            if(roles.length>0){
-                 for(i==0;i<=roles.length;i++){
-                   _roleApprove[roles[i].roleId]=_operator;
+                 for(uint256 i=0;i<=_ownAllRoles[msg.sender].length;i++){
+                   _roleApprove[AllRoles[i].roleId]=_operator;
                  }
-            }
         }
     }
 
@@ -172,7 +171,7 @@ contract RoleTemplate is ERC721 {
     /// @dev Throws if `_tokenId` is not a valid NFT
     /// @param _tokenId The NFT to find the approved address for
     /// @return The approved address for this NFT, or the zero address if there is none
-    function getApproved (uint256 _tokenId) external view returns (address){
+    function getApproved (uint256 _tokenId) override external view returns (address){
         return _roleApprove[_tokenId];
     }
 
@@ -180,13 +179,10 @@ contract RoleTemplate is ERC721 {
     /// @param _owner The address that owns the NFTs
     /// @param _operator The address that acts on behalf of the owner
     /// @return True if `_operator` is an approved operator for `_owner`, false otherwise
-    function isApprovedForAll(address _owner, address _operator) external view returns (bool){
+    function isApprovedForAll(address _owner, address _operator) override external view returns (bool){
         require(_ownAllRoles[_owner].length>0,"Owning an address does not have an NFT");
-        Role[] roles= _ownAllRoles[_owner];
-        if(roles.length>0){
-            for(i==0;i<=roles.length;i++){
-                _roleApprove[roles[i].roleId]=_operator;
-            }
+        for(uint256 i=0;i<=_ownAllRoles[msg.sender].length;i++){
+            _roleApprove[AllRoles[i].roleId]=_operator;
         }
         return true;
     }
