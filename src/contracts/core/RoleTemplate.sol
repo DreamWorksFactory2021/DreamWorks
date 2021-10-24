@@ -1,7 +1,7 @@
 pragma solidity 0.6.12;
 
 import 'github.com/DreamWorksFactory2021/DreamWorks/src/contracts/token/BEP20/ERC721.sol';
-import './algorithmHelper.sol';
+import 'github.com/DreamWorksFactory2021/DreamWorks/src/contracts/core/algorithmHelper.sol';
 
 contract RoleTemplate is ERC721 {
 
@@ -44,17 +44,17 @@ contract RoleTemplate is ERC721 {
         uint8 rarity = algorithmHelper.getRarity(INIT_RARITY);
         uint8 level = 1;
         //给予初始化的参数
-        uint32 atk = algorithmHelper.getInitAttr(rarity, initAttr);
-        uint32 def = algorithmHelper.getInitAttr(rarity, initAttr);
-        uint32 hp = algorithmHelper.getInitAttr(rarity, initAttr);
-        uint32 speed = algorithmHelper.getInitAttr(rarity, initAttr);
-        uint32 combatNumerical = algorithmHelper.getRoleCombatNumerical(atk, def, hp, speed, rarity, level, roleTag.length, initCombatNumericalRadio);
+        uint32 atk = algorithmHelper.getInitAttr(rarity, INIT_ATTR);
+        uint32 def = algorithmHelper.getInitAttr(rarity, INIT_ATTR);
+        uint32 hp = algorithmHelper.getInitAttr(rarity, INIT_ATTR);
+        uint32 speed = algorithmHelper.getInitAttr(rarity, INIT_ATTR);
+        uint32 combatNumerical = algorithmHelper.getRoleCombatNumerical(atk, def, hp, speed, rarity, level, ROLE_TAG.length, INIT_RADIO);
         uint32 roleType = algorithmHelper.get32Random(INIT_ROLE_TYPE, ROLE_TYPE_SALT);
-        uint256 needExp = algorithmHelper.getNeedExp(baseVale, level);
+        uint256 needExp = algorithmHelper.getNeedExp(EXP_BASE_VALUE, level);
         uint256 nowExp = 1;
 
 
-        Role memory role = Role(rarity, level, atk, def, hp, speed, combatNumerical, roleType, nowExp, needExp, roleTag);
+        Role memory role = Role(rarity, level, atk, def, hp, speed, combatNumerical, roleType, nowExp, needExp, ROLE_TAG);
         uint256 roleId = roles.push(role) - 1;
         OwnAllRoles[msg.sender].push(role);
         return roleId;

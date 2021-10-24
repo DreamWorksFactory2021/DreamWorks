@@ -47,8 +47,7 @@ contract AlgorithmHelper {
     //6星：1%*1%=0.01%
     function getRarity(uint[] memory _section) public view returns (uint8){
         uint8 rarity;
-        uint8 comparisonRandom;
-        uint8 random = getRandom(100, "_rarity") + 1;
+        uint8 random = get8Random(100, "_rarity") + 1;
         if (_section[0] <= random && _section[1] > random) {
             rarity = 1;
         } else if (_section[1] <= random && _section[2] > random) {
@@ -78,10 +77,9 @@ contract AlgorithmHelper {
     //
     //6星   (49~58随机波动)
     function getInitAttr(uint8 _rarity,uint8[] memory _rarityValue) public view returns(uint8){
-        uint8 attrValue;
         uint8 minValue=_rarityValue[_rarity*2-2];
         uint8 maxValue=_rarityValue[_rarity*2-1];
-        return minValue+getRandom(maxValue-minValue,"_initAttr");
+        return minValue+get8Random(maxValue-minValue,"_initAttr");
     }
 
 
@@ -115,8 +113,8 @@ contract AlgorithmHelper {
         if (_level > 0) {
             combatNumerical =combatNumerical+ _level * _initCombatNumericalRadio;
         }
-        if (_level > 0) {
-            combatNumerical =combatNumerical+ _level * _initCombatNumericalRadio;
+        if (_roleTagLength > 0) {
+            combatNumerical =combatNumerical+ _roleTagLength * _initCombatNumericalRadio;
         }
         return combatNumerical;
     }
