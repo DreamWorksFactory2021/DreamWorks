@@ -1,8 +1,11 @@
 pragma solidity 0.6.12;
 pragma experimental ABIEncoderV2;
 
-import 'github.com/DreamWorksFactory2021/DreamWorks/src/contracts/token/BEP20/ERC721.sol';
-contract RoleTemplate is ERC721 {
+import "../access/Ownable.sol";
+import "../token/BEP20/ERC721.sol";
+
+
+contract RoleTemplate is ERC721,Ownable {
 
     string public ROLE_SALT = "ROLE"; //加密盐
     string public ROLE_TYPE_SALT = "ROLE_TYPE";//类型盐
@@ -19,9 +22,10 @@ contract RoleTemplate is ERC721 {
     Role[] public AllRoles;
     mapping(address => Role[]) internal _ownAllRoles;
     mapping(uint256 => address) internal _tokenOwnInfo; //token和用户对应
-    mapping(uint256 => address) internal _roleApprove;
-    mapping(address => uint256) internal _OwnCount;
-
+    mapping(uint256 => address) internal _tokenApprovals;
+    mapping(address => uint256) internal _balances;
+    // Mapping from owner to operator approvals
+    mapping(address => mapping(address => bool)) private _operatorApprovals;
 
     event createSuccess(uint32 roleId, address userAdress);
 
@@ -51,7 +55,7 @@ contract RoleTemplate is ERC721 {
         uint32 def = _getInitAttr(rarity, INIT_ATTR);
         uint32 hp = _getInitAttr(rarity, INIT_ATTR);
         uint32 speed = _getInitAttr(rarity, INIT_ATTR);
-        uint32 combatNumerical = _getRoleCombatNumerical(level,raritymatk, def, hp, speed,ROLE_TAG.length, INIT_RADIO);
+        uint32 combatNumerical = _getRoleCombatNumerical(level,rarity,INIT_RADIO,atk, def, hp, speed,ROLE_TAG.length);
         uint32 roleType = _get32Random(INIT_ROLE_TYPE, ROLE_TYPE_SALT);
         uint256 needExp = _getNeedExp(EXP_BASE_VALUE, level);
         uint256 nowExp = 1;
@@ -63,7 +67,8 @@ contract RoleTemplate is ERC721 {
         _ownAllRoles[msg.sender].push(role);
         _tokenOwnInfo[_roleId]=msg.sender;
         _transfer(address(0),msg.sender,_roleId);
-        _OwnCount[msg.sender]=_OwnCount[msg.sender]+1;
+        uint256 count= _balances[msg.sender];
+        _balances[msg.sender]=count+1;
         return _roleId;
 
     }
@@ -79,7 +84,7 @@ contract RoleTemplate is ERC721 {
     /// @return The number of NFTs owned by `_owner`, possibly zero
     function balanceOf(address owner) public view virtual override returns (uint256) {
         require(owner != address(0), "ERC721: balance query for the zero address");
-        return _OwnCount[owner];
+        return _balances[owner];
     }
 
     /// @notice Find the owner of an NFT
@@ -106,7 +111,7 @@ contract RoleTemplate is ERC721 {
     function safeTransferFrom(address _from, address _to, uint256 _tokenId, bytes memory data) override external payable{
         require(_from !=_to,"Don't repeat the operation");
         require(_from !=address(0)&&_from !=_tokenOwnInfo[_tokenId],"Can't operate without owning");
-        require(_roleApprove[_tokenId] !=_to,"Unauthorized address does not allow operation");
+        require(_tokenApprovals[_tokenId] !=_to,"Unauthorized address does not allow operation");
         _transfer(_from,_to,_tokenId);
     }
 
@@ -119,7 +124,7 @@ contract RoleTemplate is ERC721 {
     function safeTransferFrom(address _from, address _to, uint256 _tokenId) override external payable{
         require(_from !=_to,"Don't repeat the operation");
         require(_from !=address(0)&&_from !=_tokenOwnInfo[_tokenId],"Can't operate without owning");
-        require(_roleApprove[_tokenId] !=_to,"Unauthorized address does not allow operation");
+        require(_tokenApprovals[_tokenId] !=_to,"Unauthorized address does not allow operation");
         _transfer(_from,_to,_tokenId);
     }
 
@@ -135,8 +140,9 @@ contract RoleTemplate is ERC721 {
     /// @param _tokenId The NFT to transfer
     function transferFrom(address _from, address _to, uint256 _tokenId) override external payable{
         require(_from !=_to,"Don't repeat the operation");
-        require(_from !=address(0)&&_from !=_tokenOwnInfo[_tokenId],"Can't operate without owning");
-        require(_roleApprove[_tokenId] !=_to,"Unauthorized address does not allow operation");
+        require(_from !=address(0),"address(0) can't operate");
+        require(_from !=_tokenOwnInfo[_tokenId],"Can't operate without owning");
+        require(_tokenApprovals[_tokenId] !=_to,"Unauthorized address does not allow operation");
         _transfer(_from, _to, _tokenId);
     }
 
@@ -148,7 +154,7 @@ contract RoleTemplate is ERC721 {
     /// @param _tokenId The NFT to approve
     function approve(address _approved, uint256 _tokenId) override external payable{
          require(_approved==_tokenOwnInfo[_tokenId],"authorized address is not an owner");
-         _roleApprove[_tokenId]=_approved;
+         _tokenApprovals[_tokenId]=_approved;
     }
 
     /// @notice Enable or disable approval for a third party ("operator") to manage
@@ -157,20 +163,19 @@ contract RoleTemplate is ERC721 {
     ///  multiple operators per owner.
     /// @param _operator Address to add to the set of authorized operators.
     /// @param _approved True if the operator is approved, false to revoke approval
-    function setApprovalForAll(address _operator, bool _approved) override external {
-        if(_approved){
-                 for(uint256 i=0;i<=_ownAllRoles[msg.sender].length;i++){
-                   _roleApprove[AllRoles[i].roleId]=_operator;
-                 }
-        }
+    function setApprovalForAll(address _operator, bool _approved) override  external  {
+        require(msg.sender != Ownable.owner(), "ERC721: approve to caller");
+        _operatorApprovals[msg.sender][_operator] = _approved;
+        emit ApprovalForAll(msg.sender, _operator, _approved);
     }
 
     /// @notice Get the approved address for a single NFT
     /// @dev Throws if `_tokenId` is not a valid NFT
     /// @param _tokenId The NFT to find the approved address for
     /// @return The approved address for this NFT, or the zero address if there is none
-    function getApproved (uint256 _tokenId) override external view returns (address){
-        return _roleApprove[_tokenId];
+    function getApproved(uint256 _tokenId) public view virtual override returns (address) {
+        require(_exists(_tokenId), "ERC721: approved query for nonexistent token");
+        return _tokenApprovals[_tokenId];
     }
 
     /// @notice Query if an address is an authorized operator for another address
@@ -178,11 +183,7 @@ contract RoleTemplate is ERC721 {
     /// @param _operator The address that acts on behalf of the owner
     /// @return True if `_operator` is an approved operator for `_owner`, false otherwise
     function isApprovedForAll(address _owner, address _operator) override external view returns (bool){
-        require(_ownAllRoles[_owner].length>0,"Owning an address does not have an NFT");
-        for(uint256 i=0;i<=_ownAllRoles[msg.sender].length;i++){
-            _roleApprove[AllRoles[i].roleId]=_operator;
-        }
-        return true;
+        return _operatorApprovals[_owner][_operator];
     }
 
     function _transfer(
@@ -191,10 +192,36 @@ contract RoleTemplate is ERC721 {
         uint256 tokenId
     ) internal virtual {
         // Clear approvals from the previous owner
-        _OwnCount[from] -= 1;
-        _OwnCount[to] += 1;
+        _balances[from] -= 1;
+        _balances[to] += 1;
         _tokenOwnInfo[tokenId] = to;
         emit Transfer(from, to, tokenId);
+    }
+
+    /**
+ * @dev Approve `to` to operate on `tokenId`
+     *
+     * Emits a {Approval} event.
+     */
+    function _approve(address to, uint256 tokenId) internal virtual {
+        _tokenApprovals[tokenId] = to;
+        emit Approval(_ownerOf(tokenId), to, tokenId);
+    }
+
+    /**
+ * @dev Returns whether `tokenId` exists.
+     *
+     * Tokens can be managed by their owner or approved accounts via {approve} or {setApprovalForAll}.
+     *
+     * Tokens start existing when they are minted (`_mint`),
+     * and stop existing when they are burned (`_burn`).
+     */
+    function _exists(uint256 tokenId) internal view virtual returns (bool) {
+        return _tokenOwnInfo[tokenId] != address(0);
+    }
+
+    function _ownerOf(uint256 _tokenId) internal view  returns (address){
+        return _tokenOwnInfo[_tokenId];
     }
 
     //方法传参一定要与方法参数类型一致
@@ -280,12 +307,12 @@ contract RoleTemplate is ERC721 {
     function _getRoleCombatNumerical(
         uint8 _level,
         uint8 _rarity,
+        uint16 _initCombatNumericalRadio,
         uint32 _atk,
         uint32 _def,
         uint32 _hp,
         uint32 _speed,
-        uint32 _roleTagLength,
-        uint16 _initCombatNumericalRadio)
+        uint256 _roleTagLength)
     public view returns (uint32)
     {
         uint32 combatNumerical=0;
@@ -308,7 +335,7 @@ contract RoleTemplate is ERC721 {
             combatNumerical =combatNumerical+ _level * _initCombatNumericalRadio;
         }
         if (_roleTagLength > 0) {
-            combatNumerical =combatNumerical+ _roleTagLength * _initCombatNumericalRadio;
+            combatNumerical =combatNumerical+ uint32(_roleTagLength) * _initCombatNumericalRadio;
         }
         return combatNumerical;
     }
