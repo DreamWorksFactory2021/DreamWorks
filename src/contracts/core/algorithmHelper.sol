@@ -45,7 +45,7 @@ contract AlgorithmHelper {
     //5星：1%
     //
     //6星：1%*1%=0.01%
-    function getRarity(uint[] memory _section) public view returns (uint8){
+    function getRarity(uint8[] memory _section) public view returns (uint8){
         uint8 rarity;
         uint8 random = get8Random(100, "_rarity") + 1;
         if (_section[0] <= random && _section[1] > random) {
