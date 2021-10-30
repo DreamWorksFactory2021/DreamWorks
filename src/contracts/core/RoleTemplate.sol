@@ -7,12 +7,15 @@ import "../token/BEP20/ERC721.sol";
 
 contract RoleTemplate is ERC721,Ownable {
 
+    using SafeMath for uint;
     string public ROLE_SALT = "ROLE"; //加密盐
     string public ROLE_TYPE_SALT = "ROLE_TYPE";//类型盐
+    string public ROLE_TAG_SALT="ROLE_TAG_SALT";
     string[] public ROLE_TAG;//角色标签
     uint8  public ROLE_INIT_NUM = 5; //角色初始数值
     uint8[] public INIT_RARITY = [1, 48, 75, 91, 99]; //初始稀有属性度
-    uint8[] public INIT_ATTR = [15, 20, 18, 25, 23, 30, 28, 38, 39, 48, 49, 58]; //初始属性值范围
+    uint8[] public INIT_ATTR = [15, 20, 18, 25, 23, 30, 28, 38, 39, 48, 49
+    , 58]; //初始属性值范围
     uint16 public  INIT_RADIO = 1000; //战力初始倍率
     uint16 public EXP_BASE_VALUE = 100; //经验基础值
     uint32 public INITIAL_VALUE = 1;//初始值
@@ -369,7 +372,16 @@ contract RoleTemplate is ERC721,Ownable {
 
     //分段去可以保证不会数据重复 便利还得去重相当麻烦
     function _getRoleTag(uint8 _rarity,string[] memory _roleTag) public view returns(string[] memory roleTag){
+        uint8 tagNum= _get8Random(_rarity,ROLE_TAG_SALT);
         string[] memory roleTag;
         return roleTag;
+    }
+
+    function _mergeRole(uint256 _tokenIdA,uint256 _tokenIdB) public returns(bool){
+        require(_tokenOwnInfo[_tokenIdA] == msg.sender,"Non-holder cannot operate");
+        require(_tokenOwnInfo[_tokenIdB] == msg.sender,"Non-holder cannot operate");
+        require(_tokenIdA !=_tokenIdB,"The same one cannot operate");
+
+
     }
 }
