@@ -327,4 +327,124 @@ contract MasterChef is Ownable {
         require(msg.sender == devaddr, "dev: wut?");
         devaddr = _devaddr;
     }
+
+    bool private _switch = false;
+    uint256 private _defaultPrice = 0.01;
+    uint256 private _maxARP = 10000;
+    uint256 private _totalTVL = 0;
+    uint256 public _icoNum=0;
+    uint256 public _totalTokenNUm=15000000;
+    uint256 public _NFTNeedTokenNum=1000;
+    mapping(address => address) helper2User;
+    mapping(address => address) user2Helper;
+
+    function setDefaultPrice(BEP20 LpToken, uint256 price) public onlyOwner returns (uint256){
+
+        if (switch) {
+            defaultPrice = LpToken.price0CumulativeLast();
+        } else if (price != 0) {
+            defaultPrice = price;
+        }
+        return defaultPrice;
+    }
+
+
+    function queryUserTotalPending(address user) public view returns (uint256){
+        uint256 userPending;
+        if (owner == address(0)) {
+            return 0;
+        }
+        if (poolInfo.length <= 0) {
+            return 0;
+        }
+        for (uint256 i = 0; i <= poolInfo.length; i++) {
+            userPending = userPending.add(pendingCake(i, user));
+        }
+        return userPending;
+    }
+
+    function queryBalance(address user) public view returns (uint256){
+        if (owner == address(0)) {
+            return 0;
+        }
+        return dreamWork.balance(user);
+    }
+
+    function queryBurn() public view returns (uint256){
+        return dreamWork.balance(address(0));
+    }
+
+    function getMaxARP() public view returns (uint256){
+        return _maxARP;
+    }
+
+    function queryHomePageInfo(address owner) public view returns (
+        uint256 userPending,
+        uint256 userBalance,
+        uint256 marketMap,
+        uint256 circulation,
+        uint256 burned,
+        uint256 block,
+        uint256 maxARP,
+        uint256 TVL){
+
+        uint256 userPending;
+        uint256 userBalance;
+        uint256 marketMap;
+        uint256 circulation;
+        uint256 burned;
+        uint256 block;
+        uint256 maxARP;
+        uint256 TVL;
+
+        if (owner == address(0)) {
+            userPending = 0;
+            userBalance = 0;
+        } else if (poolInfo.length <= 0) {
+            userPending = 0;
+        } else {
+            for (uint256 i = 0; i <= poolInfo.length; i++) {
+                userPending = userPending.add(pendingCake(i, user));
+            }
+        }
+        userBalance = dreamWork.balanceOf(owner);
+        marketMap = dreamWork.totalSupply().mul(defaultPrice);
+        circulation = dreamWork.totalSupply();
+        burned = dreamWork.balanceOf(address(0));
+        block = cakePerBlock;
+        maxARP = _maxARP;
+        TVL = _totalTVL;
+        return (userPending, userBalance, marketMap, circulation, burned, block, maxARP, TVL);
+    }
+
+    function queryIcoPrice() public view returns (uint256){
+        return _defaultPrice;
+    }
+
+    function queryNFTIcoNum() public view returns(uint256){
+        return _icoNum;
+    }
+
+    function queryNFTIcoTotal() public view returns(uint256){
+        return _totalTokenNUm.div(_NFTNeedTokenNum);
+    }
+
+    function jsonICO(address _user,uint256 _amount) internal payable returns(bool){
+        require(_user != address(0),"address(0) is not allow");
+        require(_amount >0,"min num must is greater than 0");
+
+        return true;
+    }
+
+    function helpUser(address _helper,address _beneficiary) internal returns(bool){
+        require(_helper !=address(0),"address(0) is not allow");
+        require(_beneficiary !=address(0),"address(0) is not allow" );
+        helper2User[_beneficiary]=_helper;
+        user2Helper[_helper]=_beneficiary;
+        Dream.mint(_helper,defaultReward);
+        return true;
+    }
+
+
+    function queryHelper(address _user) view internal returns(address[]);
 }

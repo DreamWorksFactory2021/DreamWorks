@@ -5,7 +5,7 @@ import "../access/Ownable.sol";
 import "../token/BEP20/ERC721.sol";
 
 
-contract RoleTemplate is ERC721,Ownable {
+contract DreamNFT is ERC721,Ownable {
 
     using SafeMath for uint;
     string public ROLE_SALT = "ROLE"; //加密盐
