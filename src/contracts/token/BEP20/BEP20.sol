@@ -58,7 +58,7 @@ contract BEP20 is Context, IBEP20, Ownable {
     constructor(string memory name, string memory symbol) public {
         _name = name;
         _symbol = symbol;
-        _decimals = 1;
+        _decimals = 18;
     }
 
     /**
